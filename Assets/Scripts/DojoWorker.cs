@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 using Dojo;
@@ -16,7 +17,9 @@ public class DojoWorker : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        
+        worldManager.synchronizationMaster.OnEventMessage.AddListener(HandleEvent);
+        worldManager.synchronizationMaster.OnSynchronized.AddListener(HandleSync);
+        worldManager.synchronizationMaster.OnEntitySpawned.AddListener(HandleSpawn);
     }
 
     // Update is called once per frame
@@ -39,4 +42,22 @@ public class DojoWorker : MonoBehaviour
 
         await actions.create_player(masterAccount, new FieldElement(encodedUsername));
     }
+
+    void HandleEvent(ModelInstance modelInstance)
+    {
+        // Debug.Log(modelInstance);
+    }
+
+    void HandleSpawn(GameObject spawnedEntity)
+    {
+        Debug.Log($"Entity Spawned: {spawnedEntity.name} || {spawnedEntity.transform.position}");
+    }
+
+    void HandleSync(List<GameObject> syncedObjects)
+    {
+        foreach (var item in syncedObjects)
+        {
+            Debug.Log($"Synced Objects: {item}");
+        }
+    } 
 }

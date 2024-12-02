@@ -39,8 +39,10 @@ namespace Dojo.Torii
         // So we can free the underlying c client when the managed client is garbage collected.
         ~ToriiClient()
         {
-            dojo.subscription_cancel(entitySubscription);
-            dojo.subscription_cancel(eventMessagesSubscription);
+            // For some reason, these cause a crash. TODO: investigate.
+            
+            // dojo.subscription_cancel(entitySubscription);
+            // dojo.subscription_cancel(eventMessagesSubscription);
 
             // dojo.client_free(client);
         }
@@ -143,16 +145,15 @@ namespace Dojo.Torii
             };
 
 
-            dojo.EntityKeysClause* clausesPtr = (dojo.EntityKeysClause*)0;
-            if (clauses.Length > 0)
+            dojo.EntityKeysClause* clausesPtr = null;
+            var mappedClauses = clauses.Select(c => c.ToNative()).ToArray();
+            if (mappedClauses.Length > 0)
             {
-                var mappedClauses = clauses.Select(c => c.ToNative()).ToArray();
                 fixed (dojo.EntityKeysClause* ptr = &mappedClauses[0])
                 {
                     clausesPtr = ptr;
                 }
             }
-
 
             dojo.ResultSubscription res = dojo.client_on_entity_state_update(client, clausesPtr, (UIntPtr)clauses.Length, new dojo.FnPtr_FieldElement_CArrayStruct_Void(onEntityStateUpdate));
             if (res.tag == dojo.ResultSubscription_Tag.ErrSubscription)
@@ -204,10 +205,10 @@ namespace Dojo.Torii
             };
 
 
-            dojo.EntityKeysClause* clausesPtr = (dojo.EntityKeysClause*)0;
-            if (clauses.Length > 0)
+            dojo.EntityKeysClause* clausesPtr = null;
+            var mappedClauses = clauses.Select(c => c.ToNative()).ToArray();
+            if (mappedClauses.Length > 0)
             {
-                var mappedClauses = clauses.Select(c => c.ToNative()).ToArray();
                 fixed (dojo.EntityKeysClause* ptr = &mappedClauses[0])
                 {
                     clausesPtr = ptr;
