@@ -28,6 +28,7 @@ namespace Dojo
     public abstract class ModelInstance : MonoBehaviour
     {
         public UnityEvent OnUpdated = new UnityEvent();
+        public UnityEvent<Model> OnUpdatedModel = new UnityEvent<Model>();
         public Model Model { get; private set; }
 
         // Initialize the model instance with the model
@@ -148,6 +149,7 @@ namespace Dojo
         {
             Initialize(model);
             OnUpdated.Invoke();
+            // OnUpdatedModel.Invoke(model);
         }
     }
 }

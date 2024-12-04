@@ -5,6 +5,8 @@ TagManager:
   serializedVersion: 2
   tags:
   - UsernameInput
+  - UsernameText
+  - AddressText
   layers:
   - Default
   - TransparentFX
