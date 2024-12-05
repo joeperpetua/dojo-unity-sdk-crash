@@ -7,6 +7,9 @@ TagManager:
   - UsernameInput
   - UsernameText
   - AddressText
+  - GameIDText
+  - GameFloorText
+  - PlayerPositionText
   layers:
   - Default
   - TransparentFX

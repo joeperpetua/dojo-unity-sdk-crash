@@ -12,13 +12,6 @@ using TMPro;
 using UnityEngine;
 using static EncodingService;
 
-interface IPlayerEntity
-{
-    depths_of_dread_PlayerData PlayerData { get; set; }
-    depths_of_dread_PlayerState PlayerState { get; set; }
-    depths_of_dread_PlayerPowerUps PlayerPowerUps { get; set; }
-}
-
 public class DojoWorker : MonoBehaviour
 {
     [SerializeField] WorldManager worldManager;
@@ -31,8 +24,11 @@ public class DojoWorker : MonoBehaviour
     private Account account;
     private TMP_Text addressText;
     private TMP_Text usernameText;
-    private IPlayerEntity playerEntity;
-    // Update is called once per frame
+    private TMP_Text playerPositionText;
+    private TMP_Text gameIDText;
+    private TMP_Text gameFloorText;
+    private GameObject playerEntity;
+    private GameObject gameEntity;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -43,37 +39,19 @@ public class DojoWorker : MonoBehaviour
 
         addressText = GameObject.FindGameObjectWithTag("AddressText").GetComponent<TMP_Text>();
         usernameText = GameObject.FindGameObjectWithTag("UsernameText").GetComponent<TMP_Text>();
+        playerPositionText = GameObject.FindGameObjectWithTag("PlayerPositionText").GetComponent<TMP_Text>();
+        gameIDText = GameObject.FindGameObjectWithTag("GameIDText").GetComponent<TMP_Text>();
+        gameFloorText = GameObject.FindGameObjectWithTag("GameFloorText").GetComponent<TMP_Text>();
 
         account = masterAccount;
         addressText.text = account.Address.Hex();
 
-        string hashedKey = GetPoseidonHash(account.Address);
-        Debug.Log($"Address: {account.Address.Hex()}");
-        Debug.Log($"Hash: {hashedKey}");
-        GameObject playerEntityGameObject = worldManager.Entity(hashedKey);
+        // string hashedKey = GetPoseidonHash(account.Address);
+        // Debug.Log($"Address: {account.Address.Hex()}");
+        // Debug.Log($"Hash: {hashedKey}");
+        // GameObject playerEntityGameObject = worldManager.Entity(hashedKey);
 
-        if (playerEntityGameObject != null) {
-            if (playerEntityGameObject.TryGetComponent(out depths_of_dread_PlayerData playerData))
-            {
-                playerEntity.PlayerData.OnUpdatedModel.AddListener(OnPlayerDataUpdate);
-                playerEntity.PlayerData = playerData;
-            }
-
-            if (playerEntityGameObject.TryGetComponent(out depths_of_dread_PlayerState playerState))
-            {
-                playerEntity.PlayerState.OnUpdatedModel.AddListener(OnPlayerStateUpdate);
-                playerEntity.PlayerState = playerState;
-            }
-
-            if (playerEntityGameObject.TryGetComponent(out depths_of_dread_PlayerPowerUps playerPowerUps))
-            {
-                playerEntity.PlayerPowerUps.OnUpdatedModel.AddListener(OnPlayerPowerUpsUpdate);
-                playerEntity.PlayerPowerUps = playerPowerUps;
-            }
-        }
-
-        // worldManager.synchronizationMaster.OnEntitySpawned.AddListener(HandleSpawn);
-        // worldManager.synchronizationMaster.OnEntityUpdated.AddListener(HandleUpdate);
+        worldManager.synchronizationMaster.OnEntitySpawned.AddListener(HandleSpawn);
     }
 
     public async void CreateBurner() {
@@ -88,37 +66,115 @@ public class DojoWorker : MonoBehaviour
         await actions.create_player(account, new FieldElement(encodedUsername));
     }
 
-    // void HandleSpawn(GameObject spawnedEntity)
-    // {
-    //     Debug.Log($"Entity Spawned: {spawnedEntity}");
-    //     if (spawnedEntity.TryGetComponent(out depths_of_dread_PlayerData playerData))
-    //     {
-    //         OnPlayerDataInit(spawnedEntity);
-    //         playerData.OnUpdated.AddListener(OnPlayerDataUpdate);
-    //     }
-    // }
+    public async void CreateGame() {
+        await actions.create_game(account);
+    }
 
-    void OnPlayerDataUpdate(Model playerData) {
-        GameObject entity = FindObjectOfType<depths_of_dread_PlayerData>().gameObject;
-        Debug.Log($"Updated {entity}");
+    public async void EndGame() {
+        await actions.end_game(account);
+    }
 
-        string usernameHex = entity.GetComponent<depths_of_dread_PlayerData>().username.Hex();
+    public async void Move(int direction) {
+        Direction dir = (Direction)Direction.FromIndex(typeof(Direction), direction);
+        await actions.move(account, dir);
+    }
+
+    void HandleSpawn(GameObject spawnedEntity)
+    {
+        var playerState = playerEntity == null ? null : playerEntity.GetComponent<depths_of_dread_PlayerState>();
+
+        string playerKey = GetPoseidonHash(account.Address);
+        var gameKey = playerState == null ? null : GetPoseidonHash(new FieldElement(playerState.game_id));
+        
+        if (spawnedEntity == null) { return; }
+        // Debug.Log($"Entity Spawned: {spawnedEntity}");
+        
+        if (spawnedEntity.name == playerKey)
+        {
+            if (spawnedEntity.TryGetComponent(out depths_of_dread_PlayerData _playerData))
+            {
+                playerEntity = spawnedEntity;
+                playerEntity.GetComponent<depths_of_dread_PlayerData>().OnUpdated.AddListener(OnPlayerDataUpdate);
+
+                OnPlayerDataUpdate();
+            }
+
+            if (spawnedEntity.TryGetComponent(out depths_of_dread_PlayerState _playerState))
+            {
+                playerEntity = spawnedEntity;
+                playerEntity.GetComponent<depths_of_dread_PlayerState>().OnUpdated.AddListener(OnPlayerStateUpdate);
+
+                OnPlayerStateUpdate();
+            }
+
+            if (spawnedEntity.TryGetComponent(out depths_of_dread_PlayerPowerUps _playerPowerUps))
+            {
+                playerEntity = spawnedEntity;
+                playerEntity.GetComponent<depths_of_dread_PlayerPowerUps>().OnUpdated.AddListener(OnPlayerPowerUpsUpdate);
+
+                OnPlayerPowerUpsUpdate();
+            }
+        }
+        
+        // This is always 0 for some reason
+        Debug.Log($"Game_ID: {playerState?.game_id}");
+        if (spawnedEntity.name == gameKey) 
+        {
+            if (spawnedEntity.TryGetComponent(out depths_of_dread_GameData _gameData))
+            {
+                gameEntity = spawnedEntity;
+                gameEntity.GetComponent<depths_of_dread_GameData>().OnUpdated.AddListener(OnGameDataUpdate);
+
+                OnGameDataUpdate();
+            }
+
+            if (spawnedEntity.TryGetComponent(out depths_of_dread_GameFloor _gameFloor))
+            {
+                gameEntity = spawnedEntity;
+                gameEntity.GetComponent<depths_of_dread_GameFloor>().OnUpdated.AddListener(OnGameFloorUpdate);
+
+                OnGameFloorUpdate();
+            }
+
+            if (spawnedEntity.TryGetComponent(out depths_of_dread_GameCoins _gameCoins))
+            {
+                gameEntity = spawnedEntity;
+                gameEntity.GetComponent<depths_of_dread_GameCoins>().OnUpdated.AddListener(OnGameCoinsUpdate);
+
+                OnGameCoinsUpdate();
+            }
+        }  
+    }
+
+    void OnPlayerDataUpdate() {
+        Debug.Log($"Updated {playerEntity} data");
+
+        string usernameHex = playerEntity.GetComponent<depths_of_dread_PlayerData>().username.Hex();
         usernameText.text = HexToASCII(usernameHex);
     }
 
-    void OnPlayerStateUpdate(Model playerData) {
-        GameObject entity = FindObjectOfType<depths_of_dread_PlayerData>().gameObject;
-        Debug.Log($"Updated {entity}");
+    void OnPlayerStateUpdate() {
+        Debug.Log($"Updated {playerEntity} state");
+        var playerState = playerEntity.GetComponent<depths_of_dread_PlayerState>();
 
-        string usernameHex = entity.GetComponent<depths_of_dread_PlayerData>().username.Hex();
-        usernameText.text = HexToASCII(usernameHex);
+        gameIDText.text = $"Game ID: {playerState.game_id}";
+        gameFloorText.text = $"Floor: {playerState.current_floor}";
+        playerPositionText.text = $"Position: {playerState.position.x}, {playerState.position.y}";
     }
 
-    void OnPlayerPowerUpsUpdate(Model playerData) {
-        GameObject entity = FindObjectOfType<depths_of_dread_PlayerData>().gameObject;
-        Debug.Log($"Updated {entity}");
+    void OnPlayerPowerUpsUpdate() {
+        Debug.Log($"Updated {playerEntity} powerups");
+    }
 
-        string usernameHex = entity.GetComponent<depths_of_dread_PlayerData>().username.Hex();
-        usernameText.text = HexToASCII(usernameHex);
+    void OnGameDataUpdate() {
+        Debug.Log($"Updated {gameEntity} data");
+    }
+
+    void OnGameFloorUpdate() {
+        Debug.Log($"Updated {gameEntity} floor");
+    }
+
+    void OnGameCoinsUpdate() {
+        Debug.Log($"Updated {gameEntity} coins");
     }
 }
